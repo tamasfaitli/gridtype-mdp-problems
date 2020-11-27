@@ -45,18 +45,19 @@ class Maze(MDP):
     STAY    = 4
 
     # rewards
-    R_STEP          = 0
-    R_GOAL          = 50
+    R_STEP          = -1
+    R_GOAL          = 1
     R_IMPOSSIBLE    = -100
-    R_DIE           = -100
+    R_DIE           = -10
 
-    def __init__(self, maze):
+    def __init__(self, maze, minotaur=False):
         '''
 
         :param maze:
+        :param minotaur: True if it can stay, False if it always has to move
         '''
         self.maze = maze
-        self.minotaur_mov               = self.__minotaur_movement()
+        self.minotaur_mov               = self.__minotaur_movement(minotaur)
         self.n_minotaur_mov             = len(self.minotaur_mov)
         super().__init__()
 
@@ -77,13 +78,13 @@ class Maze(MDP):
         # agent position
         for row in range(self.maze.shape[0]):
             for col in range(self.maze.shape[1]):
-                if self.maze[row,col] != 1:
+                if self.maze[row,col] != self.WALL:
                     # minotaur position
                     # with the assumption it can walk through wall
                     # but cannot not stay inside
                     for m_row in range(self.maze.shape[0]):
                         for m_col in range(self.maze.shape[1]):
-                            if self.maze[row,col] != self.WALL:
+                            if self.maze[m_row,m_col] != self.WALL:
                                 states[s] = (row,col,m_row,m_col)
                                 map[(row,col,m_row,m_col)] = s
                                 s += 1
@@ -168,11 +169,8 @@ class Maze(MDP):
             for a in range(self.n_actions):
                 for m_mov in range(self.n_minotaur_mov):
                     s_next = self._MDP__move(s,a,m_mov)
-                    # minotaur did not move
-                    if self.states[s][2:4] == self.states[s_next][2:4]:
-                        rewards[s,a] = self.R_IMPOSSIBLE
                     # agent hits the wall
-                    elif self.states[s][0:2] == self.states[s_next][0:2] and a != self.STAY:
+                    if self.states[s][0:2] == self.states[s_next][0:2] and a != self.STAY:
                         rewards[s,a] = self.R_IMPOSSIBLE
                     # minotaur catches the agent
                     elif self.states[s_next][0:2] == self.states[s_next][2:4]:
@@ -229,12 +227,19 @@ class Maze(MDP):
 
         return to_continue
 
-    def __minotaur_movement(self):
+    def __minotaur_movement(self, can_stay):
+        '''
+
+        :param can_stay: True if it can stay, False if not
+        :return:
+        '''
         minotaur = dict()
         minotaur[self.RIGHT] = (0, 1)
         minotaur[self.UP]    = (-1,0)
         minotaur[self.LEFT]  = (0,-1)
         minotaur[self.DOWN]  = (1, 0)
+        if can_stay:
+            minotaur[self.STAY]  = (0, 0)
         return minotaur
 
     def __step_minotaur(self, pos, step):
@@ -334,15 +339,14 @@ def problem_b_dynprog(maze, renderer):
     maze.animate(renderer, path, policy, V)
 
     n_games = 10000
-    n_win   = 0
+    n_win = 0
 
     for game in range(n_games):
         path, win = maze.simulate(start, policy)
         if win == maze.get_win_flag():
             n_win += 1
 
-    probability_of_winning = n_win/n_games
-    print(probability_of_winning)
+    print(n_win/n_games)
 
 
 def problem_b_valueiter(maze, renderer):
@@ -374,6 +378,33 @@ def plot_win_prob_time(time, win_rate):
     plt.ylabel("p(exit|T)")
 
     plt.show()
+
+def problem_b_prob_of_exiting_dynprog(maze):
+    start = (0, 0, 6, 5)
+
+    horizons = np.arange(20) + 1
+    win_prob = np.zeros(horizons.shape)
+
+    n_games = 10000
+
+    for t in horizons:
+        print("Solving maze using dynamic programming with horizon: " + str(t) + "...")
+        V, policy = maze.solve_dynamic_programming(t)
+        print("Maze solved...")
+
+        print("Estimating win rate for time: " + str(t) + "...")
+        n_win = 0
+
+        for game in range(n_games):
+            path, win = maze.simulate(start, policy, t)
+            if win == maze.get_win_flag():
+                n_win +=1
+
+        win_prob[t-1] = n_win/n_games
+        print("Winning probability: " + str(win_prob[t-1]) + "...")
+
+    # plot results
+    plot_win_prob_time(horizons, win_prob)
 
 
 def problem_b_prob_of_exiting(maze, policy=None):
@@ -430,10 +461,13 @@ if __name__ == '__main__':
 
     # running code for (b) using value iteration
     # policy = None
-    policy = problem_b_valueiter(maze, renderer)
+    # policy = problem_b_valueiter(maze, renderer)
 
     # plotting winning rate as function of T
-    problem_b_prob_of_exiting(maze, policy)
+    # problem_b_prob_of_exiting(maze, policy)
+
+    # plotting winning rate as function of T solving each time with dynprog
+    problem_b_prob_of_exiting_dynprog(maze)
 
 
     # running code for (c)
