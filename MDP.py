@@ -1,6 +1,7 @@
+import abc
 import numpy as np
 
-class MDP:
+class MDP(metaclass=abc.ABCMeta):
     def __init__(self):
         self.states, self.map   = self.__states()
         self.actions            = self.__actions()
@@ -9,21 +10,27 @@ class MDP:
         self.transition_prob    = self.__transition_probabilities()
         self.rewards            = self.__rewards()
 
+    @abc.abstractmethod
     def __states(self):
         raise NotImplementedError("States are not defined!")
 
+    @abc.abstractmethod
     def __actions(self):
         raise NotImplementedError("Actions are not defined!")
 
+    @abc.abstractmethod
     def __transition_probabilities(self):
         raise NotImplementedError("Transition probabilities are not defined!")
 
+    @abc.abstractmethod
     def __rewards(self):
         raise NotImplementedError("Rewards are not defined!")
 
+    @abc.abstractmethod
     def __move(self, state, action, aux=None):
         raise NotImplementedError("State transition is not defined!")
 
+    @abc.abstractmethod
     def __end_condition(self, s, next_s):
         ''' Method to evaluate whether some end conditions met during
             the simulation
@@ -34,6 +41,7 @@ class MDP:
         '''
         raise NotImplementedError("End condition for simulation is not defined!")
 
+    @abc.abstractmethod
     def __simulate_condition(self, flag, limit=None):
         ''' Working together with end condition. The two together can
             implement various ways to finish simulating the MPD.
@@ -73,8 +81,8 @@ class MDP:
 
         return path, flag
 
-    def animate(self, renderer, path, policy=None, V=None):
-        raise NotImplementedError("Animation has not been implemented!")
+    # def animate(self, renderer, path, policy=None, V=None):
+    #     raise NotImplementedError("Animation has not been implemented!")
 
     def solve_dynamic_programming(self, T):
         ''' Solves the MDP using dynamic programming
