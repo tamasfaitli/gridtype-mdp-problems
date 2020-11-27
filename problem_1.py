@@ -149,12 +149,12 @@ class Maze(MDP):
             for a in range(self.n_actions):
                 next_states = []
                 for m in range(self.n_minotaur_mov):
-                    # next_s = self.__move(s,a,m)
-                    # if next_s not in next_states:
-                    #     next_states.append(next_s)
-                    next_states.append(self._MDP__move(s,a,m))
+                    next_s = self._MDP__move(s,a,m)
+                    if next_s not in next_states:
+                        next_states.append(next_s)
                 for next_s in next_states:
                     transitions[next_s, s, a] = 1/len(next_states)
+                    print(len(next_states))
 
         return transitions
 
