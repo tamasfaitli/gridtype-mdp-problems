@@ -211,14 +211,23 @@ class Maze(MDP):
         ''' Defining the condition to stop the simulation
 
         :param flag:    values defined in method __end_condition()
-        :param limit:   Not used for this maze. It always ends with either
+        :param limit:   None: Not used for this maze. It always ends with either
                         exiting or dying.
+                        Int:  Maximum number of steps the agent has to exit.
         :return:        Boolean whether to continue the simulation. (True to continue)
         '''
-        if flag == self.CONT:
-            return True
-        else:
-            return False
+        to_continue = True
+
+        if limit != None:
+            if self.sim_time >= limit:
+                to_continue = False
+            else:
+                self.sim_time += 1
+
+        if flag != self.CONT:
+            to_continue = False
+
+        return to_continue
 
     def __minotaur_movement(self):
         minotaur = dict()
@@ -308,7 +317,13 @@ class Maze(MDP):
 
 
 
-def problem_1_b_dynprog(maze, renderer):
+def problem_b_dynprog(maze, renderer):
+    ''' Solve the problem, and illustrate an optimal policy for T = 20.
+
+    :param maze:
+    :param renderer:
+    :return:
+    '''
     T = 20
     start = (0, 0, 6, 5)
 
@@ -327,34 +342,79 @@ def problem_1_b_dynprog(maze, renderer):
             n_win += 1
 
     probability_of_winning = n_win/n_games
-
     print(probability_of_winning)
 
-    # horizons = np.arange(20) + 1
 
-# def problem_1_b_valueiter(maze, renderer):
-#     gamma = 0.95
-#     epsilon = 0.0001
-#     start = (0, 0, 6, 5)
-#
-#     V, policy = value_iteration(maze, gamma, epsilon)
-#
-#     path, win = maze.simulate(start, policy)
-#
-#     maze.animate_simulation(renderer, path, policy, V)
-#
-#     n_games = 10000
-#     n_win = 0
-#
-#     for game in range(n_games):
-#         path, win = maze.simulate(start, policy)
-#         if win:
-#             n_win +=1
-#
-#     probability_of_winning = n_win/n_games
-#     print(probability_of_winning)
+def problem_b_valueiter(maze, renderer):
+    ''' Solve the problem, and illustrate an optimal policy for T = 20.
 
-def problem_1_c():
+    :param maze:
+    :param renderer:
+    :return:
+    '''
+    gamma = 0.95
+    epsilon = 0.0001
+    start = (0, 0, 6, 5)
+
+    V, policy = maze.solve_value_iteration(gamma, epsilon)
+
+    path, win = maze.simulate(start, policy)
+
+    maze.animate(renderer, path, policy, V)
+
+    return policy
+
+
+def plot_win_prob_time(time, win_rate):
+    plt.figure(figsize=(7,4))
+    plt.plot(time, win_rate, 'yD')
+    plt.plot(time, win_rate, 'k:')
+    plt.xticks(time)
+    plt.xlabel("T - available time to exit the maze")
+    plt.ylabel("p(exit|T)")
+
+    plt.show()
+
+
+def problem_b_prob_of_exiting(maze, policy=None):
+    ''' Plotting the maximal probability of exiting the maze as a function of T.
+
+    :param maze:
+    :param policy:
+    :return:
+    '''
+    gamma   = 0.95
+    epsilon = 0.0001
+    start   = (0, 0, 6, 5)
+
+    if not hasattr(policy, 'shape'):
+        print("Solving maze...")
+        V, policy = maze.solve_value_iteration(gamma, epsilon)
+        print("Maze has been solved...")
+
+    time        = np.arange(20) + 1
+    win_prob    = np.zeros(time.shape)
+
+    n_games = 10000
+
+    for t in time:
+        print("Estimating win rate for time: " + str(t) + "...")
+        n_win = 0
+
+        for game in range(n_games):
+            path, win = maze.simulate(start, policy, t)
+            if win == maze.get_win_flag():
+                n_win +=1
+
+        win_prob[t-1] = n_win/n_games
+        print("Winning probability: " + str(win_prob[t-1]) + "...")
+
+
+    # plot results
+    plot_win_prob_time(time, win_prob)
+
+
+def problem_c():
     pass
 
 
@@ -365,14 +425,19 @@ if __name__ == '__main__':
     maze = Maze(DEF_MAZE)
     renderer = MazeRenderer(maze, save_mode)
 
-    # running code for (b)
-    problem_1_b_dynprog(maze, renderer)
+    # running code for (b) using dynamic programming
+    # problem_b_dynprog(maze, renderer)
 
-    # running code for (b) with value iteration
-    # problem_1_b_valueiter(maze, renderer)
+    # running code for (b) using value iteration
+    # policy = None
+    policy = problem_b_valueiter(maze, renderer)
+
+    # plotting winning rate as function of T
+    problem_b_prob_of_exiting(maze, policy)
+
 
     # running code for (c)
-    problem_1_c()
+    problem_c()
 
 
 
