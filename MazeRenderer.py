@@ -16,7 +16,7 @@ AGENT_IMG       = 'res/agent_comp.npy'
 MINOTAUR_IMG    = 'res/minotaur_comp.npy'
 ARROW_IMG       = 'res/arrow_comp.npy'
 
-class MazeRenderer():
+class MazeRenderer:
     '''
     This class
     '''
@@ -30,7 +30,7 @@ class MazeRenderer():
 
     bar_width = 3
 
-    def __init__(self, maze):
+    def __init__(self, maze, save_mod=False):
         '''
         Constructor of the renderer. Setting sizes, loading images.
 
@@ -74,6 +74,9 @@ class MazeRenderer():
         self.canvas     = plt.figure(figsize=(6,5), frameon=False)
 
         self.bar_height = self.grid - self.td_offset
+
+        self.save_mode  = save_mod
+        self.saved_imgs = 0
 
     def __img_correction(self):
         ''' Original image assets work with reversed gray colormap,
@@ -201,11 +204,14 @@ class MazeRenderer():
                     (col + 1) * self.grid - self.r_offset, 1:3] = 0.0
 
     def __draw(self, pause):
-        plt.imshow(self.content)
-        plt.axis('off')
-        plt.subplots_adjust(left=.0,right=1.0, top=1.0, bottom=0.0)
-
-        plt.pause(pause)
+        if self.save_mode:
+            plt.imsave('res/fig' + str(self.saved_imgs) + '.png', self.content)
+            self.saved_imgs += 1
+        else:
+            plt.imshow(self.content)
+            plt.axis('off')
+            plt.subplots_adjust(left=.0,right=1.0, top=1.0, bottom=0.0)
+            plt.pause(pause)
 
 
     def update(self, agent_pos, minotaur_pos, policy=None, values=None, pause=0.1):
@@ -231,4 +237,10 @@ class MazeRenderer():
 
         # draw image
         self.__draw(pause)
+
+    def set_save_mod(self, mode):
+        self.save_mode = mode
+
+    def reset_image_counter(self):
+        self.saved_imgs = 0
 
