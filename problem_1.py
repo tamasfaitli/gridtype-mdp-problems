@@ -45,10 +45,10 @@ class Maze(MDP):
     STAY    = 4
 
     # rewards
-    R_STEP          = -1
+    R_STEP          = 0
     R_GOAL          = 1
     R_IMPOSSIBLE    = -100
-    R_DIE           = -10
+    R_DIE           = -50
 
     def __init__(self, maze, minotaur=False):
         '''
@@ -179,6 +179,8 @@ class Maze(MDP):
                     elif self.states[s][0:2] == self.states[s_next][0:2] \
                             and self.maze[self.states[s_next][0:2]] == self.EXIT \
                             and a == self.STAY:
+                    # elif self.maze[self.states[s_next][0:2]] == self.EXIT \
+                    #         and a != self.STAY:
                         rewards[s,a] = self.R_GOAL
                     else:
                         rewards[s,a] = self.R_STEP
@@ -369,10 +371,14 @@ def problem_b_valueiter(maze, renderer):
     return policy
 
 
-def plot_win_prob_time(time, win_rate):
+def plot_win_prob_time(time, win_rate, aux=None):
     plt.figure(figsize=(7,4))
     plt.plot(time, win_rate, 'yD')
-    plt.plot(time, win_rate, 'k:')
+    plt.plot(time, win_rate, 'k:', label='_nolegend_')
+    if hasattr(aux, 'shape'):
+        plt.plot(time, aux, 'mD')
+        plt.plot(time, aux, 'k:', label='_nolegend_')
+        plt.legend(["Minotaur always move","Minotaur can stay still"])
     plt.xticks(time)
     plt.xlabel("T - available time to exit the maze")
     plt.ylabel("p(exit|T)")
@@ -403,9 +409,8 @@ def problem_b_prob_of_exiting_dynprog(maze):
         win_prob[t-1] = n_win/n_games
         print("Winning probability: " + str(win_prob[t-1]) + "...")
 
-    # plot results
-    plot_win_prob_time(horizons, win_prob)
 
+    return horizons, win_prob
 
 def problem_b_prob_of_exiting(maze, policy=None):
     ''' Plotting the maximal probability of exiting the maze as a function of T.
@@ -441,8 +446,7 @@ def problem_b_prob_of_exiting(maze, policy=None):
         print("Winning probability: " + str(win_prob[t-1]) + "...")
 
 
-    # plot results
-    plot_win_prob_time(time, win_prob)
+    return time, win_prob
 
 
 def problem_c():
@@ -457,7 +461,7 @@ if __name__ == '__main__':
     renderer = MazeRenderer(maze, save_mode)
 
     # running code for (b) using dynamic programming
-    # problem_b_dynprog(maze, renderer)
+    problem_b_dynprog(maze, renderer)
 
     # running code for (b) using value iteration
     # policy = None
@@ -467,8 +471,10 @@ if __name__ == '__main__':
     # problem_b_prob_of_exiting(maze, policy)
 
     # plotting winning rate as function of T solving each time with dynprog
-    problem_b_prob_of_exiting_dynprog(maze)
-
+    # time, winrate = problem_b_prob_of_exiting_dynprog(maze)
+    # maze = Maze(DEF_MAZE, True)
+    # time_minstay, winrate_minstay = problem_b_prob_of_exiting_dynprog(maze)
+    # plot_win_prob_time(time, winrate, winrate_minstay)
 
     # running code for (c)
     problem_c()
