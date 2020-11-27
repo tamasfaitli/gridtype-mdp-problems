@@ -10,6 +10,8 @@ class MDP(metaclass=abc.ABCMeta):
         self.transition_prob    = self.__transition_probabilities()
         self.rewards            = self.__rewards()
 
+        self.sim_time           = 0
+
     @abc.abstractmethod
     def __states(self):
         raise NotImplementedError("States are not defined!")
@@ -50,7 +52,11 @@ class MDP(metaclass=abc.ABCMeta):
         '''
         raise NotImplementedError("Simulate condition has not been implemented!")
 
+    def __reset_simulation(self):
+        self.sim_time = 0
+
     def simulate(self, start, policy, limit=None):
+        self.__reset_simulation()
         path = []
         flag = 0
         # Initialize current state and time
