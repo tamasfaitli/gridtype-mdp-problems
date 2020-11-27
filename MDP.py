@@ -68,7 +68,7 @@ class MDP(metaclass=abc.ABCMeta):
             # Move to next state given the policy and the current state
             # time-varying policy
             if len(policy.shape) == 2:
-                if time >= policy.shape[1]:
+                if time >= (policy.shape[1]-1):
                     break
                 next_s = self.__move(s, policy[s, time])
             # time invariant policy
