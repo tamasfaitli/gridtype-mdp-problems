@@ -154,7 +154,6 @@ class Maze(MDP):
                         next_states.append(next_s)
                 for next_s in next_states:
                     transitions[next_s, s, a] = 1/len(next_states)
-                    print(len(next_states))
 
         return transitions
 
