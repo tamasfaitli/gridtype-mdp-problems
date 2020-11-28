@@ -170,26 +170,24 @@ class Maze(MDP):
 
         for s in range(self.n_states):
             for a in range(self.n_actions):
-                reward = 0
+                r = np.zeros((self.n_minotaur_mov))
+                p = np.zeros((self.n_minotaur_mov))
                 for m_mov in range(self.n_minotaur_mov):
-                    s_next = self._MDP__move(s,a,m_mov)
-                    weight = self.transition_prob[s_next,s,a]
-                    # agent hits the wall
+                    s_next = self._MDP__move(s, a, m_mov)
+                    p[m_mov] = self.transition_prob[s_next, s, a]
                     if self.states[s][0:2] == self.states[s_next][0:2] and a != self.STAY:
-                        reward += weight*self.R_IMPOSSIBLE
+                        r[m_mov] = self.R_IMPOSSIBLE
                     # minotaur catches the agent
                     elif self.states[s_next][0:2] == self.states[s_next][2:4]:
-                        reward += weight*self.R_DIE
+                        r[m_mov] = self.R_DIE
                     # reward for reaching exit
                     elif self.states[s][0:2] == self.states[s_next][0:2] \
                             and self.table[self.states[s_next][0:2]] == self.EXIT \
                             and a == self.STAY:
-                    # elif self.maze[self.states[s_next][0:2]] == self.EXIT \
-                    #         and a != self.STAY:
-                        reward += weight*self.R_GOAL
+                        r[m_mov] = self.R_GOAL
                     else:
-                        reward += weight*self.R_STEP
-                rewards[s,a] = reward
+                        r[m_mov] = self.R_STEP
+                rewards[s,a] = np.dot(r,p)
 
         return rewards
 
@@ -476,7 +474,7 @@ if __name__ == '__main__':
     renderer = TableRenderer(maze, character_images, save_mode)
 
     # running code for (b) using dynamic programming
-    # problem_b_dynprog(maze, renderer)
+    problem_b_dynprog(maze, renderer)
 
     # running code for (b) using value iteration
     # policy = None
@@ -486,10 +484,10 @@ if __name__ == '__main__':
     # problem_b_prob_of_exiting(maze, policy)
 
     # plotting winning rate as function of T solving each time with dynprog
-    time, winrate = problem_b_prob_of_exiting_dynprog(maze)
-    maze = Maze(DEF_MAZE, True)
-    time_minstay, winrate_minstay = problem_b_prob_of_exiting_dynprog(maze)
-    plot_win_prob_time(time, winrate, winrate_minstay)
+    # time, winrate = problem_b_prob_of_exiting_dynprog(maze)
+    # maze = Maze(DEF_MAZE, True)
+    # time_minstay, winrate_minstay = problem_b_prob_of_exiting_dynprog(maze)
+    # plot_win_prob_time(time, winrate, winrate_minstay)
 
     # running code for (c)
     problem_c()

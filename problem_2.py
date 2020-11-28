@@ -16,6 +16,8 @@ DEF_TABLE = np.array([
 # initial position
 DEF_INIT_POS = (0,0,1,2)
 
+DEF_GAMMA = 0.0001
+
 # render images
 AGENT_IMG       = 'res/thief.npy'
 MINOTAUR_IMG    = 'res/police.npy'
@@ -40,6 +42,7 @@ class BankRobbing(MDP):
     R_ROBBING       = 10
     R_CATCH         = -50
     R_IMPOSSIBLE    = -100
+    R_IDLE          = 0
 
     # number calculated on paper to check available police movement
     PARAM_MAX_DIST_INCREMENT = 0.4142 + 0.05
@@ -108,19 +111,23 @@ class BankRobbing(MDP):
 
         for s in range(self.n_states):
             for a in range(self.n_actions):
-                reward = 0
-                for p in range(self.n_police_actions):
-                    next_s = self._MDP__move(s,a,p)
-                    weight = self.transition_prob[next_s, s, a]
+                r = np.zeros((self.n_police_actions))
+                p = np.zeros((self.n_police_actions))
+                for p_mov in range(self.n_police_actions):
+                    s_next = self._MDP__move(s,a,p_mov)
+                    p[p_mov] = self.transition_prob[s_next,s,a]
                     # catch
-                    if self.states[next_s][0:2] == self.states[next_s][2:4]:
-                        reward += weight*self.R_CATCH
+                    if self.states[s_next][0:2] == self.states[s_next][2:4]:
+                        r[p_mov] = self.R_CATCH
                     # rob
-                    elif self.states[s][0:2] == self.states[next_s][0:2] \
+                    elif self.states[s][0:2] == self.states[s_next][0:2] \
                         and self.table[self.states[s][0:2]] == self.BANK \
                         and a == self.STAY:
-                        reward += weight*self.R_ROBBING
-                rewards[s,a] = reward
+                        r[p_mov] = self.R_ROBBING
+                    else:
+                        r[p_mov] = self.R_IDLE
+                rewards[s,a] = np.dot(r,p)
+
 
         return rewards
 
@@ -261,11 +268,33 @@ class BankRobbing(MDP):
         police[self.DOWN]   = ( 1, 0)
         return police
 
+    def get_init_state(self):
+        return self.map[self.init_pos]
+
+
+def solve_mdp_and_animate_results(bank, renderer):
+
+    V, policy = bank.solve_value_iteration(0.7, DEF_GAMMA)
+
+    path, flag, rewards = banks.simulate(DEF_INIT_POS, policy, 20)
+
+    banks.animate(renderer, path, policy, V)
+
+def get_value_lambda_function(bank, lambdas):
+    init_state = bank.get_init_state()
+
+    values_at_init_state = []
+
+    for l in lambdas:
+        V, policy = bank.solve_value_iteration(l, DEF_GAMMA)
+        values_at_init_state.append(V[init_state])
+
+    return values_at_init_state
+
+
 if __name__ == "__main__":
     save_mode = False
     banks = BankRobbing(DEF_TABLE, DEF_INIT_POS)
-
-    V, policy = banks.solve_value_iteration(0.95, 0.0001)
 
     character_images = {
         'agent'     : np.load(AGENT_IMG),
@@ -273,9 +302,15 @@ if __name__ == "__main__":
     }
     renderer = TableRenderer(banks, character_images, save_mode, (6,3))
 
-    path, flag, rewards = banks.simulate(DEF_INIT_POS, policy, 20)
+    solve_mdp_and_animate_results(banks, renderer)
 
-    banks.animate(renderer, path, policy, V, rewards)
 
-    pass
+    # lambdas = np.linspace(0.001,0.999,100)
+    # # lambdas[0] = 0.001
+    # values = get_value_lambda_function(banks, lambdas)
+    #
+    # plt.plot(lambdas, values)
+    # plt.show()
+
+
 
