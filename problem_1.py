@@ -11,7 +11,7 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-from MazeRenderer import MazeRenderer
+from TableRenderer import TableRenderer
 from MDP import MDP
 
 # Description of the maze
@@ -26,6 +26,10 @@ DEF_MAZE = np.array([[0,0,1,0,0,0,0,0],
                     [0,0,0,0,0,0,0,0],
                     [0,1,1,1,1,1,1,0],
                     [0,0,0,0,1,2,0,0]])
+
+# render images
+AGENT_IMG       = 'res/agent_comp.npy'
+MINOTAUR_IMG    = 'res/minotaur_comp.npy'
 
 class Maze(MDP):
     # maze constants
@@ -50,13 +54,13 @@ class Maze(MDP):
     R_IMPOSSIBLE    = -100
     R_DIE           = -50
 
-    def __init__(self, maze, minotaur=False):
+    def __init__(self, table, minotaur=False):
         '''
 
-        :param maze:
+        :param table:
         :param minotaur: True if it can stay, False if it always has to move
         '''
-        self.maze = maze
+        self.table = table
         self.minotaur_mov               = self.__minotaur_movement(minotaur)
         self.n_minotaur_mov             = len(self.minotaur_mov)
         super().__init__()
@@ -76,15 +80,15 @@ class Maze(MDP):
         map = dict()
         s = 0
         # agent position
-        for row in range(self.maze.shape[0]):
-            for col in range(self.maze.shape[1]):
-                if self.maze[row,col] != self.WALL:
+        for row in range(self.table.shape[0]):
+            for col in range(self.table.shape[1]):
+                if self.table[row, col] != self.WALL:
                     # minotaur position
                     # with the assumption it can walk through wall
                     # but cannot not stay inside
-                    for m_row in range(self.maze.shape[0]):
-                        for m_col in range(self.maze.shape[1]):
-                            if self.maze[m_row,m_col] != self.WALL:
+                    for m_row in range(self.table.shape[0]):
+                        for m_col in range(self.table.shape[1]):
+                            if self.table[m_row, m_col] != self.WALL:
                                 states[s] = (row,col,m_row,m_col)
                                 map[(row,col,m_row,m_col)] = s
                                 s += 1
@@ -103,9 +107,9 @@ class Maze(MDP):
         col = self.states[state][1] + self.actions[action][1]
 
         # agent hits wall or edge
-        if (row == -1) or (row == self.maze.shape[0]) or \
-            (col == -1) or (col == self.maze.shape[1]) or \
-            (self.maze[row,col] == self.WALL):
+        if (row == -1) or (row == self.table.shape[0]) or \
+            (col == -1) or (col == self.table.shape[1]) or \
+            (self.table[row, col] == self.WALL):
 
             # stay in current position
             row = self.states[state][0]
@@ -176,7 +180,7 @@ class Maze(MDP):
                         rewards[s,a] = self.R_DIE
                     # reward for reaching exit
                     elif self.states[s][0:2] == self.states[s_next][0:2] \
-                            and self.maze[self.states[s_next][0:2]] == self.EXIT \
+                            and self.table[self.states[s_next][0:2]] == self.EXIT \
                             and a == self.STAY:
                     # elif self.maze[self.states[s_next][0:2]] == self.EXIT \
                     #         and a != self.STAY:
@@ -200,7 +204,7 @@ class Maze(MDP):
         if position[0:2] == position[2:4]:
             return self.DEAD
         # at the step taken the agent exited the maze
-        elif self.maze[position[0:2]] == self.EXIT:
+        elif self.table[position[0:2]] == self.EXIT:
             return self.WIN
         else:
             return self.CONT
@@ -249,13 +253,13 @@ class Maze(MDP):
         c = pos[1] + step[1]
 
         # hitting the edge:
-        edge = (r == -1) or (r == self.maze.shape[0]) or \
-               (c == -1) or (c == self.maze.shape[1])
+        edge = (r == -1) or (r == self.table.shape[0]) or \
+               (c == -1) or (c == self.table.shape[1])
         if edge:
             return False, [0,0]
 
         # going through wall
-        elif self.maze[r,c] == self.WALL:
+        elif self.table[r, c] == self.WALL:
             valid, pos = self.__step_minotaur([r,c],step)
             if not valid:
                 return False, [0,0]
@@ -266,12 +270,12 @@ class Maze(MDP):
         return True, [r,c]
 
     def get_grid_values_for_minpos(self, optimal_values, minotaur_pos, default_val):
-        grid_val = np.zeros((self.maze.shape))
+        grid_val = np.zeros((self.table.shape))
 
-        for r in range(self.maze.shape[0]):
-            for c in range(self.maze.shape[1]):
+        for r in range(self.table.shape[0]):
+            for c in range(self.table.shape[1]):
                 # wall positions are not states
-                if self.maze[r, c] != 1:
+                if self.table[r, c] != 1:
                     s = self.map[(r,c,minotaur_pos[0],minotaur_pos[1])]
                     grid_val[r,c] = optimal_values[s]
                 else:
@@ -313,7 +317,7 @@ class Maze(MDP):
                 values_t_minpos = None
 
             # render state, values, policy
-            renderer.update(agent_pos, minotaur_pos, policy_t_minpos, values_t_minpos, 0.3)
+            renderer.update(step, policy_t_minpos, values_t_minpos, 0.3)
 
             # step
             t += 1
@@ -456,8 +460,14 @@ if __name__ == '__main__':
     # False to plot, true to save images
     save_mode = False
 
+    # init maze
     maze = Maze(DEF_MAZE)
-    renderer = MazeRenderer(maze, save_mode)
+
+    # init renderer
+    character_images = {
+        'agent'     : np.load(AGENT_IMG),
+        'minotaur'  : np.load(MINOTAUR_IMG)}
+    renderer = TableRenderer(maze, character_images, save_mode)
 
     # running code for (b) using dynamic programming
     problem_b_dynprog(maze, renderer)
