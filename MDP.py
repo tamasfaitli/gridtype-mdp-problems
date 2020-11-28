@@ -58,6 +58,8 @@ class MDP(metaclass=abc.ABCMeta):
     def simulate(self, start, policy, limit=None):
         self.__reset_simulation()
         path = []
+        cumulative_reward = 0
+        rewards = [cumulative_reward]
         flag = 0
         # Initialize current state and time
         time = 0
@@ -70,14 +72,18 @@ class MDP(metaclass=abc.ABCMeta):
             if len(policy.shape) == 2:
                 if time >= (policy.shape[1]-1):
                     break
-                next_s = self.__move(s, policy[s, time])
+                action = int(policy[s, time])
             # time invariant policy
             else:
-                next_s = self.__move(s, policy[s])
+                action = int(policy[s])
+
+            next_s = self.__move(s, action)
+            cumulative_reward += self.rewards[s, action]
 
             # Add the position in the maze corresponding to the next state
             # to the path
             path.append(self.states[next_s])
+            rewards.append(cumulative_reward)
 
             flag = self.__end_condition(s, next_s)
 
@@ -85,10 +91,8 @@ class MDP(metaclass=abc.ABCMeta):
             time += 1
             s = next_s
 
-        return path, flag
+        return path, flag, rewards
 
-    # def animate(self, renderer, path, policy=None, V=None):
-    #     raise NotImplementedError("Animation has not been implemented!")
 
     def solve_dynamic_programming(self, T):
         ''' Solves the MDP using dynamic programming
@@ -109,7 +113,7 @@ class MDP(metaclass=abc.ABCMeta):
             for s in range(self.n_states):
                 for a in range(self.n_actions):
                     Q[s, a] = self.rewards[s,a] + np.dot(self.transition_prob[:,s,a],V[:,t+1])
-            V[:,t] = np.max(Q,1)
+            V[:,t]      = np.max(Q,1)
             policy[:,t] = np.argmax(Q,1)
 
         return V, policy

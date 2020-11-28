@@ -49,10 +49,10 @@ class Maze(MDP):
     STAY    = 4
 
     # rewards
-    R_STEP          = 0
+    R_STEP          = -1
     R_GOAL          = 1
     R_IMPOSSIBLE    = -100
-    R_DIE           = -50
+    R_DIE           = -10
 
     def __init__(self, table, minotaur=False):
         '''
@@ -170,23 +170,26 @@ class Maze(MDP):
 
         for s in range(self.n_states):
             for a in range(self.n_actions):
+                reward = 0
                 for m_mov in range(self.n_minotaur_mov):
                     s_next = self._MDP__move(s,a,m_mov)
+                    weight = self.transition_prob[s_next,s,a]
                     # agent hits the wall
                     if self.states[s][0:2] == self.states[s_next][0:2] and a != self.STAY:
-                        rewards[s,a] = self.R_IMPOSSIBLE
+                        reward += weight*self.R_IMPOSSIBLE
                     # minotaur catches the agent
                     elif self.states[s_next][0:2] == self.states[s_next][2:4]:
-                        rewards[s,a] = self.R_DIE
+                        reward += weight*self.R_DIE
                     # reward for reaching exit
                     elif self.states[s][0:2] == self.states[s_next][0:2] \
                             and self.table[self.states[s_next][0:2]] == self.EXIT \
                             and a == self.STAY:
                     # elif self.maze[self.states[s_next][0:2]] == self.EXIT \
                     #         and a != self.STAY:
-                        rewards[s,a] = self.R_GOAL
+                        reward += weight*self.R_GOAL
                     else:
-                        rewards[s,a] = self.R_STEP
+                        reward += weight*self.R_STEP
+                rewards[s,a] = reward
 
         return rewards
 
@@ -269,14 +272,14 @@ class Maze(MDP):
         # feasible movement
         return True, [r,c]
 
-    def get_grid_values_for_minpos(self, optimal_values, minotaur_pos, default_val):
+    def __get_grid_values_for_fixed_pos(self, optimal_values, fixed_pos, default_val):
         grid_val = np.zeros((self.table.shape))
 
         for r in range(self.table.shape[0]):
             for c in range(self.table.shape[1]):
                 # wall positions are not states
                 if self.table[r, c] != 1:
-                    s = self.map[(r,c,minotaur_pos[0],minotaur_pos[1])]
+                    s = self.map[(r,c,fixed_pos[0],fixed_pos[1])]
                     grid_val[r,c] = optimal_values[s]
                 else:
                     grid_val[r,c] = default_val
@@ -284,47 +287,50 @@ class Maze(MDP):
         return grid_val
 
 
-    def animate(self, renderer, path, policy=None, V=None):
+    def animate(self, renderer, path, policy=None, V=None, rate=0.3):
         # time
         t = 0
 
         # iterate through path
         for step in path:
             # parse positions from path
-            agent_pos = step[0:2]
-            minotaur_pos = step[2:4]
+            fixed_pos = step[2:4]
 
             if hasattr(policy, 'shape'):
                 # time dependent policy
                 if len(policy.shape) > 1:
                     # get drawable policy function
-                    policy_t_minpos = self.get_grid_values_for_minpos(policy[:, t], minotaur_pos, self.STAY)
+                    policy_t_fixed_pos = \
+                        self.__get_grid_values_for_fixed_pos(policy[:, t], fixed_pos, self.STAY)
                 # not time dependent
                 else:
-                    policy_t_minpos = self.get_grid_values_for_minpos(policy[:], minotaur_pos, self.STAY)
+                    policy_t_fixed_pos = \
+                        self.__get_grid_values_for_fixed_pos(policy[:], fixed_pos, self.STAY)
             else:
-                policy_t_minpos = None
+                policy_t_fixed_pos = None
 
             if hasattr(V, 'shape'):
                 # time dependent value function
                 if len(V.shape) > 1:
                     # get drawable value function
-                    values_t_minpos = self.get_grid_values_for_minpos(V[:, t], minotaur_pos, 0.0)
+                    values_t_fixed_pos = \
+                        self.__get_grid_values_for_fixed_pos(V[:, t], fixed_pos, 0.0)
                 # not time dependent
                 else:
-                    values_t_minpos = self.get_grid_values_for_minpos(V[:], minotaur_pos, 0.0)
+                    values_t_fixed_pos = \
+                        self.__get_grid_values_for_fixed_pos(V[:], fixed_pos, 0.0)
             else:
-                values_t_minpos = None
+                values_t_fixed_pos = None
 
             # render state, values, policy
-            renderer.update(step, policy_t_minpos, values_t_minpos, 0.3)
+            renderer.update(step, policy_t_fixed_pos, values_t_fixed_pos, rate)
 
             # step
             t += 1
 
+
     def get_win_flag(self):
         return self.WIN
-
 
 
 def problem_b_dynprog(maze, renderer):
@@ -339,7 +345,7 @@ def problem_b_dynprog(maze, renderer):
 
     V, policy = maze.solve_dynamic_programming(T)
 
-    path, win = maze.simulate(start, policy)
+    path, win, rewards = maze.simulate(start, policy)
 
     maze.animate(renderer, path, policy, V)
 
@@ -347,7 +353,7 @@ def problem_b_dynprog(maze, renderer):
     n_win = 0
 
     for game in range(n_games):
-        path, win = maze.simulate(start, policy)
+        path, win, rewards = maze.simulate(start, policy)
         if win == maze.get_win_flag():
             n_win += 1
 
@@ -367,7 +373,7 @@ def problem_b_valueiter(maze, renderer):
 
     V, policy = maze.solve_value_iteration(gamma, epsilon)
 
-    path, win = maze.simulate(start, policy)
+    path, win, rewards = maze.simulate(start, policy)
 
     maze.animate(renderer, path, policy, V)
 
@@ -405,7 +411,7 @@ def problem_b_prob_of_exiting_dynprog(maze):
         n_win = 0
 
         for game in range(n_games):
-            path, win = maze.simulate(start, policy, t)
+            path, win, r = maze.simulate(start, policy, t)
             if win == maze.get_win_flag():
                 n_win +=1
 
@@ -441,7 +447,7 @@ def problem_b_prob_of_exiting(maze, policy=None):
         n_win = 0
 
         for game in range(n_games):
-            path, win = maze.simulate(start, policy, t)
+            path, win, r = maze.simulate(start, policy, t)
             if win == maze.get_win_flag():
                 n_win +=1
 
@@ -470,7 +476,7 @@ if __name__ == '__main__':
     renderer = TableRenderer(maze, character_images, save_mode)
 
     # running code for (b) using dynamic programming
-    problem_b_dynprog(maze, renderer)
+    # problem_b_dynprog(maze, renderer)
 
     # running code for (b) using value iteration
     # policy = None
@@ -480,10 +486,10 @@ if __name__ == '__main__':
     # problem_b_prob_of_exiting(maze, policy)
 
     # plotting winning rate as function of T solving each time with dynprog
-    # time, winrate = problem_b_prob_of_exiting_dynprog(maze)
-    # maze = Maze(DEF_MAZE, True)
-    # time_minstay, winrate_minstay = problem_b_prob_of_exiting_dynprog(maze)
-    # plot_win_prob_time(time, winrate, winrate_minstay)
+    time, winrate = problem_b_prob_of_exiting_dynprog(maze)
+    maze = Maze(DEF_MAZE, True)
+    time_minstay, winrate_minstay = problem_b_prob_of_exiting_dynprog(maze)
+    plot_win_prob_time(time, winrate, winrate_minstay)
 
     # running code for (c)
     problem_c()

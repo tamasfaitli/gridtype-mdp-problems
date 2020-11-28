@@ -1,23 +1,29 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from MDP import MDP
+from TableRenderer import TableRenderer
 
 # Description of the map with the convention of:
 # 0 : empty cell
 # 1 : bank location
 # 2 : police station
 DEF_TABLE = np.array([
-    [1,0,0,0,0,1],
-    [0,0,2,0,0,0],
-    [1,0,0,0,0,1]
+    [2,0,0,0,0,2],
+    [0,0,3,0,0,0],
+    [2,0,0,0,0,2]
 ])
 
+# initial position
 DEF_INIT_POS = (0,0,1,2)
+
+# render images
+AGENT_IMG       = 'res/thief.npy'
+MINOTAUR_IMG    = 'res/police.npy'
 
 class BankRobbing(MDP):
     # map constants
-    BANK    = 1
-    STATION = 2
+    BANK    = 2
+    STATION = 3
 
     # situation
     CATCH   = -1
@@ -36,7 +42,7 @@ class BankRobbing(MDP):
     R_IMPOSSIBLE    = -100
 
     # number calculated on paper to check available police movement
-    PARAM_MAX_DIST_INCREMENT = 0.236 + 0.05
+    PARAM_MAX_DIST_INCREMENT = 0.4142 + 0.05
 
     def __init__(self, table, init_pos):
         self.table = table
@@ -102,15 +108,19 @@ class BankRobbing(MDP):
 
         for s in range(self.n_states):
             for a in range(self.n_actions):
+                reward = 0
                 for p in range(self.n_police_actions):
                     next_s = self._MDP__move(s,a,p)
+                    weight = self.transition_prob[next_s, s, a]
                     # catch
                     if self.states[next_s][0:2] == self.states[next_s][2:4]:
-                        rewards[s,a] = self.R_CATCH
+                        reward += weight*self.R_CATCH
                     # rob
-                    if self.states[s][0:2] == self.states[next_s][0:2] \
+                    elif self.states[s][0:2] == self.states[next_s][0:2] \
+                        and self.table[self.states[s][0:2]] == self.BANK \
                         and a == self.STAY:
-                        rewards[s,a] = self.R_ROBBING
+                        reward += weight*self.R_ROBBING
+                rewards[s,a] = reward
 
         return rewards
 
@@ -126,6 +136,10 @@ class BankRobbing(MDP):
         police_pos = np.array(self.states[state][2:4])
 
         orig_dist  = np.linalg.norm(agent_pos-police_pos)
+
+        # catch, transition to initial state
+        if orig_dist == 0.0:
+            return self.map[self.init_pos]
 
         act = np.array(self.actions[action])
 
@@ -145,8 +159,8 @@ class BankRobbing(MDP):
 
             # check whether new position is not on the table
             if not self.__hitting_edge(police_new_pos):
-                diff = np.linalg.norm(police_new_pos-agent_pos)
-                if diff < self.PARAM_MAX_DIST_INCREMENT:
+                new_dist = np.linalg.norm(police_new_pos-agent_pos)
+                if new_dist < (orig_dist+self.PARAM_MAX_DIST_INCREMENT):
                     police_next_positions[p] = police_new_pos
 
         # deterministic police movement for transition and reward filling
@@ -163,10 +177,81 @@ class BankRobbing(MDP):
         return self.map[(agent_new_pos[0],agent_new_pos[1],police_new_pos[0],police_new_pos[1])]
 
     def _MDP__end_condition(self, s, next_s):
-        pass
+        return 0
 
-    def _MDP__simulate_condition(self, flag, limit=None):
-        pass
+    def _MDP__simulate_condition(self, flag, limit):
+        ''' If the thief has been caught, it transitions back to init state.
+            Therefore there is only time limitations.
+
+        :param flag:
+        :param limit:   Number of steps to simulate
+        :return:        Boolean, True when hit count reached limit.
+        '''
+        if self.sim_time >= limit:
+            return False
+        else:
+            self.sim_time += 1
+            return True
+
+    def __get_grid_values_for_fixed_pos(self, optimal_values, fixed_pos, default_val):
+        grid_val = np.zeros((self.table.shape))
+
+        for r in range(self.table.shape[0]):
+            for c in range(self.table.shape[1]):
+                # wall positions are not states
+                if self.table[r, c] != 1:
+                    s = self.map[(r,c,fixed_pos[0],fixed_pos[1])]
+                    grid_val[r,c] = optimal_values[s]
+                else:
+                    grid_val[r,c] = default_val
+
+        return grid_val
+
+    def animate(self, renderer, path, policy=None, V=None, rewards=None, rate=0.3):
+        # time
+        t = 0
+
+        balance = 0
+
+        # iterate through path
+        for step in path:
+            # parse positions from path
+            fixed_pos = step[2:4]
+
+            if hasattr(policy, 'shape'):
+                # time dependent policy
+                if len(policy.shape) > 1:
+                    # get drawable policy function
+                    policy_t_fixed_pos = \
+                        self.__get_grid_values_for_fixed_pos(policy[:, t], fixed_pos, self.STAY)
+                # not time dependent
+                else:
+                    policy_t_fixed_pos = \
+                        self.__get_grid_values_for_fixed_pos(policy[:], fixed_pos, self.STAY)
+            else:
+                policy_t_fixed_pos = None
+
+            if hasattr(V, 'shape'):
+                # time dependent value function
+                if len(V.shape) > 1:
+                    # get drawable value function
+                    values_t_fixed_pos = \
+                        self.__get_grid_values_for_fixed_pos(V[:, t], fixed_pos, 0.0)
+                # not time dependent
+                else:
+                    values_t_fixed_pos = \
+                        self.__get_grid_values_for_fixed_pos(V[:], fixed_pos, 0.0)
+            else:
+                values_t_fixed_pos = None
+
+            # render state, values, policy
+            renderer.update(step, policy_t_fixed_pos, values_t_fixed_pos, rate)
+
+            if rewards != None:
+                print("Cumulative reward: " + str(rewards[t]))
+
+            # step
+            t += 1
 
     def __police_actions(self):
         police = dict()
@@ -177,10 +262,20 @@ class BankRobbing(MDP):
         return police
 
 if __name__ == "__main__":
-
+    save_mode = False
     banks = BankRobbing(DEF_TABLE, DEF_INIT_POS)
 
     V, policy = banks.solve_value_iteration(0.95, 0.0001)
+
+    character_images = {
+        'agent'     : np.load(AGENT_IMG),
+        'police'    : np.load(MINOTAUR_IMG)
+    }
+    renderer = TableRenderer(banks, character_images, save_mode, (6,3))
+
+    path, flag, rewards = banks.simulate(DEF_INIT_POS, policy, 20)
+
+    banks.animate(renderer, path, policy, V, rewards)
 
     pass
 
