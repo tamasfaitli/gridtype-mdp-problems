@@ -50,7 +50,7 @@ class Maze(MDP):
 
     # rewards
     R_STEP          = -1
-    R_GOAL          = 1
+    R_GOAL          = 0
     R_IMPOSSIBLE    = -100
     R_DIE           = -10
 
@@ -456,8 +456,26 @@ def problem_b_prob_of_exiting(maze, policy=None):
     return time, win_prob
 
 
-def problem_c():
-    pass
+def problem_c(maze):
+    mean = 30
+
+    n_games = 10000
+    n_win = 0
+
+    start = (0,0,6,5)
+
+    V, policy = maze.solve_dynamic_programming(mean)
+
+    for game in range(n_games):
+        life = np.random.geometric(1/mean)
+
+        p,win,r = maze.simulate(start, policy, life)
+
+        if win == maze.get_win_flag():
+            n_win += 1
+
+    print("Probability of getting out alive: " + \
+          str(n_win/n_games))
 
 
 if __name__ == '__main__':
@@ -472,6 +490,8 @@ if __name__ == '__main__':
         'agent'     : np.load(AGENT_IMG),
         'minotaur'  : np.load(MINOTAUR_IMG)}
     renderer = TableRenderer(maze, character_images, save_mode)
+
+    # renderer.update((0,0,6,5),None,None,0)
 
     # running code for (b) using dynamic programming
     problem_b_dynprog(maze, renderer)
@@ -490,7 +510,7 @@ if __name__ == '__main__':
     # plot_win_prob_time(time, winrate, winrate_minstay)
 
     # running code for (c)
-    problem_c()
+    problem_c(maze)
 
 
 
