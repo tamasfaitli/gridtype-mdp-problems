@@ -13,6 +13,19 @@ import matplotlib.pyplot as plt
 from MDP import MDP
 from TableRenderer import TableRenderer
 
+# Switches to run different parts of the exercise
+# 0 - do not run
+# 1 - run
+RUN_CASES = {
+    'solve_problem_and_render' : 1,
+    'plot_value_as_discfactor' : 0
+}
+
+# Switch to decide whether plot or save images
+# False - plot images
+# True  - save images
+SAVE_MODE = False
+
 # Description of the map with the convention of:
 # 0 : empty cell
 # 1 : bank location
@@ -333,7 +346,7 @@ class BankRobbing(MDP):
 
 def solve_mdp_and_animate_results(bank, renderer):
 
-    V, policy = bank.solve_value_iteration(0.7, DEF_EPSILON)
+    V, policy = bank.solve_value_iteration(0.6, DEF_EPSILON)
 
     path, flag, rewards = banks.simulate(DEF_INIT_POS, policy, 20)
 
@@ -352,24 +365,28 @@ def get_value_lambda_function(bank, lambdas):
 
 
 if __name__ == "__main__":
-    save_mode = False
     banks = BankRobbing(DEF_TABLE, DEF_INIT_POS)
 
     character_images = {
         'agent'     : np.load(AGENT_IMG),
         'police'    : np.load(MINOTAUR_IMG)
     }
-    renderer = TableRenderer(banks, character_images, save_mode, (6,3))
-
-    solve_mdp_and_animate_results(banks, renderer)
+    renderer = TableRenderer(banks, character_images, SAVE_MODE, (6, 3))
 
 
-    # lambdas = np.linspace(0.001,0.999,100)
-    # # lambdas[0] = 0.001
-    # values = get_value_lambda_function(banks, lambdas)
-    #
-    # plt.plot(lambdas, values)
-    # plt.show()
+    if RUN_CASES['solve_problem_and_render']:
+        solve_mdp_and_animate_results(banks, renderer)
+
+    if RUN_CASES['plot_value_as_discfactor']:
+        lambdas = np.linspace(0.001,0.999,100)
+        # lambdas[0] = 0.001
+        values = get_value_lambda_function(banks, lambdas)
+
+        plt.figure(figsize=(7,4))
+        plt.plot(lambdas, values)
+        plt.xlabel("Discount factor")
+        plt.ylabel("Value function evaluated in initial state")
+        plt.show()
 
 
 

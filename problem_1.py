@@ -13,18 +13,34 @@ import matplotlib.pyplot as plt
 from TableRenderer import TableRenderer
 from MDP import MDP
 
-# Description of the maze
-# with the convention of
+# switches to run different parts of the exercise
+# 0 - do not run
+# 1 - run
+RUN_CASES = {
+    'solve_problem_dynprog' : 1,
+    'solve_problem_valiter' : 0,
+    'win_rate_as_func_time' : 0,
+    'problem_c'             : 0
+}
+
+# Switch to decide whether plot or save images
+# False - plot images
+# True  - save images
+SAVE_MODE = False
+
+# Description of the maze with the convention of
 # 0 = empty cell
 # 1 = wall
 # 2 = exit
-DEF_MAZE = np.array([[0,0,1,0,0,0,0,0],
-                    [0,0,1,0,0,1,0,0],
-                    [0,0,1,0,0,1,1,1],
-                    [0,0,1,0,0,1,0,0],
-                    [0,0,0,0,0,0,0,0],
-                    [0,1,1,1,1,1,1,0],
-                    [0,0,0,0,1,2,0,0]])
+MAZE_DESCRIPTION = np.array([
+    [0,0,1,0,0,0,0,0],
+    [0,0,1,0,0,1,0,0],
+    [0,0,1,0,0,1,1,1],
+    [0,0,1,0,0,1,0,0],
+    [0,0,0,0,0,0,0,0],
+    [0,1,1,1,1,1,1,0],
+    [0,0,0,0,1,2,0,0]
+])
 
 # render images
 AGENT_IMG       = 'res/theseus.npy'
@@ -48,8 +64,10 @@ class Maze(MDP):
     STAY    = 4
 
     # rewards
-    R_STEP          = -1
-    R_GOAL          = 0
+    # R_STEP          = -2    # for problem c
+    R_STEP          = 0   # for problem b
+    # R_GOAL          = 0     # for problem c
+    R_GOAL          = 1   # for problem b
     R_IMPOSSIBLE    = -100
     R_DIE           = -10
 
@@ -138,7 +156,6 @@ class Maze(MDP):
             minotaur_next_position = minotaur_next_positions[minotaur_step]
 
         return self.map[(row,col,minotaur_next_position[0],minotaur_next_position[1])]
-
 
     def _MDP__transition_probabilities(self):
         ''' Defining transition probabilities for each state transition for each action
@@ -417,7 +434,7 @@ def problem_b_prob_of_exiting_dynprog(maze):
     '''
     start = (0, 0, 6, 5)
 
-    horizons = np.arange(20) + 1
+    horizons = np.arange(30) + 1
     win_prob = np.zeros(horizons.shape)
 
     n_games = 10000
@@ -501,36 +518,36 @@ def problem_c(maze):
 
 
 if __name__ == '__main__':
-    # False to plot, true to save images
-    save_mode = False
-
     # init maze
-    maze = Maze(DEF_MAZE)
+    maze = Maze(MAZE_DESCRIPTION)
 
     # init renderer
     character_images = {
         'agent'     : np.load(AGENT_IMG),
         'minotaur'  : np.load(MINOTAUR_IMG)}
-    renderer = TableRenderer(maze, character_images, save_mode)
+    renderer = TableRenderer(maze, character_images, SAVE_MODE)
 
-    # solving  using dynamic programming
-    problem_b_dynprog(maze, renderer)
 
-    # running code for (b) using value iteration
-    # policy = None
-    # policy = problem_b_valueiter(maze, renderer)
+    # solving problem using dynamic programming
+    if RUN_CASES['solve_problem_dynprog']:
+        solve_maze_using_dynprog(maze, renderer)
 
-    # plotting winning rate as function of T
-    # problem_b_prob_of_exiting(maze, policy)
+    # solving problem using value iteration
+    if RUN_CASES['solve_problem_valiter']:
+        solve_maze_using_valueiteration(maze, renderer)
 
-    # plotting winning rate as function of T solving each time with dynprog
-    # time, winrate = problem_b_prob_of_exiting_dynprog(maze)
-    # maze = Maze(DEF_MAZE, True)
-    # time_minstay, winrate_minstay = problem_b_prob_of_exiting_dynprog(maze)
-    # plot_win_prob_time(time, winrate, winrate_minstay)
+    # plotting winning rate as function of time
+    if RUN_CASES['win_rate_as_func_time']:
+        # plotting winning rate as function of T solving each time with dynprog
+        time, win_rate = problem_b_prob_of_exiting_dynprog(maze)
+        # recreating maze with the possibility of the Minotaur to stay
+        maze = Maze(MAZE_DESCRIPTION, True)
+        time_m, win_rate_m = problem_b_prob_of_exiting_dynprog(maze)
+        plot_win_prob_time(time, win_rate, win_rate_m)
 
     # running code for (c)
-    problem_c(maze)
+    if RUN_CASES['problem_c']:
+        problem_c(maze)
 
 
 
