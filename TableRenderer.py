@@ -2,7 +2,6 @@
 #                                               #
 # EL2805 Reinforcement Learning                 #
 # Computer Lab 1                                #
-# Problem 1                                     #
 #                                               #
 # Author: Tamas Faitli (19960205-T410)          #
 #                                               #
@@ -12,7 +11,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # These assets are squared and it is expected to be squared (e.g. 40x40px)
-ARROW_IMG       = 'res/arrow_comp.npy'
+ARROW_IMG       = 'res/right_arrow.npy'
 
 class TableRenderer:
     '''

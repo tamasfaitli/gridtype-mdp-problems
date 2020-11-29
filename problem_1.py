@@ -5,7 +5,6 @@
 # Problem 1                                     #
 #                                               #
 # Author: Tamas Faitli (19960205-T410)          #
-# Part of the code is inherited from lab0       #
 #                                               #
 #################################################
 
@@ -28,8 +27,8 @@ DEF_MAZE = np.array([[0,0,1,0,0,0,0,0],
                     [0,0,0,0,1,2,0,0]])
 
 # render images
-AGENT_IMG       = 'res/agent_comp.npy'
-MINOTAUR_IMG    = 'res/minotaur_comp.npy'
+AGENT_IMG       = 'res/theseus.npy'
+MINOTAUR_IMG    = 'res/minotaur.npy'
 
 class Maze(MDP):
     # maze constants
@@ -276,7 +275,7 @@ class Maze(MDP):
         for r in range(self.table.shape[0]):
             for c in range(self.table.shape[1]):
                 # wall positions are not states
-                if self.table[r, c] != 1:
+                if self.table[r, c] != self.WALL:
                     s = self.map[(r,c,fixed_pos[0],fixed_pos[1])]
                     grid_val[r,c] = optimal_values[s]
                 else:
@@ -331,12 +330,13 @@ class Maze(MDP):
         return self.WIN
 
 
-def problem_b_dynprog(maze, renderer):
-    ''' Solve the problem, and illustrate an optimal policy for T = 20.
+def solve_maze_using_dynprog(maze, renderer):
+    ''' Solve the maze problem using dynamic programming,
+        and illustrate an optimal policy for T = 20.
 
-    :param maze:
-    :param renderer:
-    :return:
+    :param maze:        Maze object
+    :param renderer:    TableRenderer object
+    :return: -
     '''
     T = 20
     start = (0, 0, 6, 5)
@@ -355,15 +355,16 @@ def problem_b_dynprog(maze, renderer):
         if win == maze.get_win_flag():
             n_win += 1
 
-    print(n_win/n_games)
+    print("Exiting probability: " + str(n_win/n_games))
 
 
-def problem_b_valueiter(maze, renderer):
-    ''' Solve the problem, and illustrate an optimal policy for T = 20.
+def solve_maze_using_valueiteration(maze, renderer):
+    ''' Solve the maze problem using value iteration,
+        and illustrate an optimal policy for T = 20.
 
-    :param maze:
-    :param renderer:
-    :return:
+    :param maze:        Maze object
+    :param renderer:    TableRenderer object
+    :return: -
     '''
     gamma = 0.95
     epsilon = 0.0001
@@ -375,10 +376,26 @@ def problem_b_valueiter(maze, renderer):
 
     maze.animate(renderer, path, policy, V)
 
-    return policy
+    n_games = 10000
+    n_win = 0
+
+    for game in range(n_games):
+        path, win, rewards = maze.simulate(start, policy)
+        if win == maze.get_win_flag():
+            n_win += 1
+
+    print("Exiting probability: " + str(n_win/n_games))
 
 
 def plot_win_prob_time(time, win_rate, aux=None):
+    ''' Plotting winning rate as a function of time.
+
+    :param time:        horizon values
+    :param win_rate:    winning probability rate values
+                        depending on horizon
+    :param aux:         additional win_rate values
+    :return:
+    '''
     plt.figure(figsize=(7,4))
     plt.plot(time, win_rate, 'yD')
     plt.plot(time, win_rate, 'k:', label='_nolegend_')
@@ -393,6 +410,11 @@ def plot_win_prob_time(time, win_rate, aux=None):
     plt.show()
 
 def problem_b_prob_of_exiting_dynprog(maze):
+    '''
+
+    :param maze:
+    :return:
+    '''
     start = (0, 0, 6, 5)
 
     horizons = np.arange(20) + 1
@@ -419,7 +441,7 @@ def problem_b_prob_of_exiting_dynprog(maze):
 
     return horizons, win_prob
 
-def problem_b_prob_of_exiting(maze, policy=None):
+def problem_b_prob_of_exiting_valiter(maze, policy=None):
     ''' Plotting the maximal probability of exiting the maze as a function of T.
 
     :param maze:
@@ -491,9 +513,7 @@ if __name__ == '__main__':
         'minotaur'  : np.load(MINOTAUR_IMG)}
     renderer = TableRenderer(maze, character_images, save_mode)
 
-    # renderer.update((0,0,6,5),None,None,0)
-
-    # running code for (b) using dynamic programming
+    # solving  using dynamic programming
     problem_b_dynprog(maze, renderer)
 
     # running code for (b) using value iteration

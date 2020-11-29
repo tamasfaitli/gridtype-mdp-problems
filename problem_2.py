@@ -1,3 +1,13 @@
+#################################################
+#                                               #
+# EL2805 Reinforcement Learning                 #
+# Computer Lab 1                                #
+# Problem 2                                     #
+#                                               #
+# Author: Tamas Faitli (19960205-T410)          #
+#                                               #
+#################################################
+
 import numpy as np
 import matplotlib.pyplot as plt
 from MDP import MDP
@@ -16,13 +26,16 @@ DEF_TABLE = np.array([
 # initial position
 DEF_INIT_POS = (0,0,1,2)
 
-DEF_GAMMA = 0.0001
+# accuracy of the value iteration procedure
+DEF_EPSILON = 0.0001
 
 # render images
 AGENT_IMG       = 'res/thief.npy'
 MINOTAUR_IMG    = 'res/police.npy'
 
 class BankRobbing(MDP):
+    ''' BankRobbing class formulating the bank robbing problem as an MDP. '''
+
     # map constants
     BANK    = 2
     STATION = 3
@@ -45,9 +58,17 @@ class BankRobbing(MDP):
     R_IDLE          = 0
 
     # number calculated on paper to check available police movement
-    PARAM_MAX_DIST_INCREMENT = 0.4142 + 0.05
+    PARAM_MAX_DIST_INCREMENT = (2**(1/2)-1) + 0.05
 
     def __init__(self, table, init_pos):
+        ''' Constructor..
+
+        :param table:       np.array table describing the location
+                            of banks and police station
+        :param init_pos:    initial position (this problem is not episodic,
+                            after the police catches the thief it transition
+                            back to this position)
+        '''
         self.table = table
         self.police_actions     = self.__police_actions()
         self.n_police_actions   = len(self.police_actions)
@@ -111,8 +132,11 @@ class BankRobbing(MDP):
 
         for s in range(self.n_states):
             for a in range(self.n_actions):
+                # calculating expected reward for current state and action
                 r = np.zeros((self.n_police_actions))
                 p = np.zeros((self.n_police_actions))
+
+                # possible state transitions and their reward
                 for p_mov in range(self.n_police_actions):
                     s_next = self._MDP__move(s,a,p_mov)
                     p[p_mov] = self.transition_prob[s_next,s,a]
@@ -126,22 +150,42 @@ class BankRobbing(MDP):
                         r[p_mov] = self.R_ROBBING
                     else:
                         r[p_mov] = self.R_IDLE
-                rewards[s,a] = np.dot(r,p)
 
+                # expected reward
+                rewards[s,a] = np.dot(r,p)
 
         return rewards
 
     def __hitting_edge(self, pos):
-        if (pos[0] == -1) or (pos[0] == self.table.shape[0]) \
-            or (pos[1] == -1) or (pos[1] == self.table.shape[1]):
+        ''' Check if current position is outside of the table.
+
+        :param pos: position (x,y)
+        :return:    True if outside of table
+                    False if on the table
+        '''
+        if (pos[0] <= -1) or (pos[0] >= self.table.shape[0]) \
+            or (pos[1] <= -1) or (pos[1] >= self.table.shape[1]):
             return True
         else:
             return False
 
     def _MDP__move(self, state, action, police=None):
+        ''' Evaluating current state and action and execute state
+            transition.
+
+        :param state:   Current state
+        :param action:  Action taken
+        :param police:  If None or left empty, police takes a random step.
+                        If police action provided, it will take that step
+                        in case that step is feasible (does not violate rules)
+        :return:        Next state
+        '''
+
+        # parse position for agent and police from state
         agent_pos  = np.array(self.states[state][0:2])
         police_pos = np.array(self.states[state][2:4])
 
+        # calculate distance
         orig_dist  = np.linalg.norm(agent_pos-police_pos)
 
         # catch, transition to initial state
@@ -184,6 +228,7 @@ class BankRobbing(MDP):
         return self.map[(agent_new_pos[0],agent_new_pos[1],police_new_pos[0],police_new_pos[1])]
 
     def _MDP__end_condition(self, s, next_s):
+        # there is no end condition, problem is not episodic
         return 0
 
     def _MDP__simulate_condition(self, flag, limit):
@@ -201,24 +246,38 @@ class BankRobbing(MDP):
             return True
 
     def __get_grid_values_for_fixed_pos(self, optimal_values, fixed_pos, default_val):
+        ''' get values or policy for each agent position on the table for a
+            fixed police value
+
+        :param optimal_values:  Value or policy function (time invariant or for
+                                one time step)
+        :param fixed_pos:       The fixed position of the police
+        :param default_val:
+        :return:
+        '''
         grid_val = np.zeros((self.table.shape))
 
         for r in range(self.table.shape[0]):
             for c in range(self.table.shape[1]):
-                # wall positions are not states
-                if self.table[r, c] != 1:
-                    s = self.map[(r,c,fixed_pos[0],fixed_pos[1])]
-                    grid_val[r,c] = optimal_values[s]
-                else:
-                    grid_val[r,c] = default_val
+                s = self.map[(r,c,fixed_pos[0],fixed_pos[1])]
+                grid_val[r,c] = optimal_values[s]
 
         return grid_val
 
     def animate(self, renderer, path, policy=None, V=None, rewards=None, rate=0.3):
+        ''' Animate the bank robbing problem for a given time.
+
+        :param renderer:    TableRenderer object
+        :param path:        List containing each state taken during the simulation
+        :param policy:      Policy (if given) to plot optimal policy on the table
+        :param V:           V (if given) to plot optimal values on the table
+        :param rewards:     rewards (if given) prints accumulated rewards
+        :param rate:        time while a single state is being plotted (in seconds)
+        :return: -
+        '''
+
         # time
         t = 0
-
-        balance = 0
 
         # iterate through path
         for step in path:
@@ -274,7 +333,7 @@ class BankRobbing(MDP):
 
 def solve_mdp_and_animate_results(bank, renderer):
 
-    V, policy = bank.solve_value_iteration(0.7, DEF_GAMMA)
+    V, policy = bank.solve_value_iteration(0.7, DEF_EPSILON)
 
     path, flag, rewards = banks.simulate(DEF_INIT_POS, policy, 20)
 
@@ -286,7 +345,7 @@ def get_value_lambda_function(bank, lambdas):
     values_at_init_state = []
 
     for l in lambdas:
-        V, policy = bank.solve_value_iteration(l, DEF_GAMMA)
+        V, policy = bank.solve_value_iteration(l, DEF_EPSILON)
         values_at_init_state.append(V[init_state])
 
     return values_at_init_state
