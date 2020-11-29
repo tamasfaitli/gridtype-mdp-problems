@@ -1,3 +1,12 @@
+#################################################
+#                                               #
+# EL2805 Reinforcement Learning                 #
+# Computer Lab 1                                #
+#                                               #
+# Author: Tamas Faitli (19960205-T410)          #
+#                                               #
+#################################################
+
 import abc
 import numpy as np
 
